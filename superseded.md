@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract Ballot is Ownable {
     // proposal: needs a name, record of how many votes, options?
     struct Proposal {
-        string name;
+        bytes32 name;
         uint256 voteCount;
     }
     // voters: already voted? (bool), access to vote? (uint), vote index (uint)
@@ -26,7 +26,7 @@ contract Ballot is Ownable {
     address public chairperson;
 
     // proposalNames will add the proposal names to the smart contract on deployment
-    constructor(string[] memory proposalNames) {
+    constructor(bytes32[] memory proposalNames) {
         ballotIsOpen = true;
         chairperson = msg.sender;
         voters[chairperson].weight = 1; // allocate 1 weight to chair/admin
@@ -36,7 +36,7 @@ contract Ballot is Ownable {
     }
 
     // add new proposals to proposals list
-    function addProposals(string[] memory newProposalNames) public onlyOwner {
+    function addProposals(bytes32[] memory newProposalNames) public onlyOwner {
         require(ballotIsEnded == false, "This ballot has already concluded");
         for (uint256 i = 0; i < newProposalNames.length; i++) {
             proposals.push(Proposal({name: newProposalNames[i], voteCount: 0}));
@@ -44,29 +44,29 @@ contract Ballot is Ownable {
     }
 
     // cast vote by proposal name
-    // function castVote(string _vote) public {
-    //     Voter storage sender = voters[msg.sender];
+    function castVote(bytes32 _vote) public {
+        Voter storage sender = voters[msg.sender];
 
-    //     require(ballotIsOpen, "ballot is currently closed");
-    //     require(!ballotIsEnded, "ballot has already concluded");
-    //     require(!sender.voted, "address has already voted!");
-    //     require(sender.weight > 0, "address not approved to vote!");
+        require(ballotIsOpen, "ballot is currently closed");
+        require(!ballotIsEnded, "ballot has already concluded");
+        require(!sender.voted, "address has already voted!");
+        require(sender.weight > 0, "address not approved to vote!");
 
-    //     uint256 check = 0;
-    //     for (uint256 i = 0; i < proposals.length; i++) {
-    //         if (proposals[i].name == _vote) {
-    //             proposals[i].voteCount += sender.weight;
-    //             check += 1;
-    //         }
-    //     }
-    //     if (check > 0) {
-    //         sender.voted = true;
-    //         sender.voteNo += 1;
-    //     }
-    // }
+        uint256 check = 0;
+        for (uint256 i = 0; i < proposals.length; i++) {
+            if (proposals[i].name == _vote) {
+                proposals[i].voteCount += sender.weight;
+                check += 1;
+            }
+        }
+        if (check > 0) {
+            sender.voted = true;
+            sender.voteNo += 1;
+        }
+    }
 
     // cast vote by index
-    function vote(uint256 _vote) public {
+    function voteByIndex(uint256 _vote) public {
         Voter storage sender = voters[msg.sender]; // define data location that will run between function calls
 
         require(_vote <= proposals.length, "invalid entry");
@@ -87,55 +87,50 @@ contract Ballot is Ownable {
         require(voters[_voter].weight == 0, "voter already has right to vote!");
         require(!voters[_voter].voted, "voter has already voted!");
 
-        voters[_voter].weight = 1;
+        voters[_voter].weight == 1;
     }
 
     // display results only
-    function getVotes(uint256 _proposal)
+    function getProposalStatus(uint256 _proposal)
         public
         view
-        returns (uint256 proposalVotes_)
+        returns (Proposal memory proposals_)
     {
-        return proposals[_proposal].voteCount;
+        return proposals[_proposal];
     }
 
     // retrieve proposal name only
-    function getName(uint256 _proposal)
+    function getProposalName(uint256 _proposal)
         public
         view
-        returns (string memory proposalName_)
+        returns (bytes32 proposalName_)
     {
         return proposals[_proposal].name;
     }
 
-    // retrieve proposal name only
-    function getLength() public view returns (uint256 numOfProposals_) {
-        return proposals.length;
-    }
-
     // end ballot and count votes
-    function concludeBallot() public onlyOwner {
-        ballotIsOpen = false;
-        ballotIsEnded = true;
-    }
-
-    function getResults()
+    function concludeBallot()
         public
-        view
-        returns (string memory winner_, uint256 winningVoteCount_)
+        onlyOwner
+        returns (bytes32 winner_, uint256 winningVoteCount_)
     {
-        require(ballotIsEnded == true, "ballot is still open.");
+        require(
+            ballotIsEnded == false,
+            "This ballot has already concluded. Please try getProposalsStatus() function"
+        );
+        require(ballotIsOpen == false, "ballot must be closed before ending");
 
-        string memory winner;
-        uint256 votes = 0;
+        bytes32 winner;
+        uint256 winningVoteCount = 0;
 
         for (uint256 i = 0; i < proposals.length; i++) {
-            if (proposals[i].voteCount > votes) {
-                votes = proposals[i].voteCount;
+            if (proposals[i].voteCount > winningVoteCount) {
+                winningVoteCount = proposals[i].voteCount;
                 winner = proposals[i].name;
             }
         }
-        return (winner, votes);
+        ballotIsEnded = true;
+        return (winner, winningVoteCount);
     }
 
     // is there a way to add approved addresses to authentication of Owner?
@@ -164,5 +159,4 @@ contract Ballot is Ownable {
 
 // bytes32 as string
 
-// uses node.js package 'ethers' to convert strings to byte32 on chain,
-// reducing the gas required for interacting with smart contracts
+//
