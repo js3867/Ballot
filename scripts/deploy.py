@@ -83,6 +83,11 @@ def show_results():
         print(f"..{proposal[0]} got {proposal[1]} votes")
 
 
+def update_front_end():
+
+
+
+
 def main():
     deploy_ballot(proposals1)
     cast_vote(0, 0)
@@ -97,4 +102,5 @@ def main():
     get_current_status()
     winner = conclude_ballot()
     show_results()
+    print()
     # cast_vote(4, 5)
