@@ -1,17 +1,24 @@
-from brownie import accounts, Ballot
+from importlib.abc import Loader
+import json
+import yaml
+import os
+import shutil
+from brownie import accounts, network, config, Ballot
 from scripts.helpful_scripts import *
 
 proposals1 = ["coffee machine", "snooker table", "topless waiter", "office pet"]
 proposals2 = ["just give us flexitime!!!"]
 
 
-def deploy_ballot(proposals):
+def deploy_ballot(proposals, front_end_update=False):
     account = get_account(0)
     print("deploying Ballot contract...")
     Ballot.deploy(proposals, {"from": account})
     print("Success! The following proposals are ready for voting:")
     for proposal in proposals:
         print(f"..{proposal}")
+    if front_end_update:
+        update_front_end()
 
 
 def cast_vote(Idx, address=None):
@@ -52,7 +59,7 @@ def add_proposals(new_proposals):
     print()
 
 
-def approveAddress(addresses):
+def approveAddresses(addresses):
     account = get_account(0)
     b = Ballot[-1]
     for i in addresses:
@@ -84,21 +91,34 @@ def show_results():
 
 
 def update_front_end():
+    copy_folders_to_front_end("./build", "./front_end/src/chain-info")
+
+    # react works better with JSON, not so well with YAML, so convert here
+    with open("brownie-config.yaml", "r") as brownie_config:
+        config_dict = yaml.load(brownie_config, Loader=yaml.FullLoader)
+        with open("./front_end/src/brownie-config.json", "w") as brownie_config_json:
+            json.dump(config_dict, brownie_config_json)
+    print("Front end updated!")
 
 
+def copy_folders_to_front_end(src, dest):
+    if os.path.exists(dest):
+        shutil.rmtree(dest)
+    shutil.copytree(src, dest)
 
 
 def main():
-    deploy_ballot(proposals1)
+    deploy_ballot(proposals1, front_end_update=True)
+    # deploy_ballot(proposals1)
     cast_vote(0, 0)
     addresses_to_approve = [1, 2, 3, 4, 5, 6, 7, 8, 9]
-    approveAddress(addresses_to_approve)
-    cast_vote(2, 1)
-    cast_vote(3, 2)
-    cast_vote(2, 3)
-    get_current_status()
+    # approveAddresses(addresses_to_approve)
+    # cast_vote(2, 1)
+    # cast_vote(3, 2)
+    # cast_vote(2, 3)
+    # get_current_status()
     add_proposals(proposals2)
-    cast_vote(4, 4)
+    # cast_vote(4, 4)
     get_current_status()
     winner = conclude_ballot()
     show_results()
